@@ -9,6 +9,7 @@
 #include <linux/kernel.h>   
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
+#include <linux/version.h>
 #define BUFSIZE  100
 
 #define PROCFS_NAME "simple-procfs-kmod"
@@ -60,12 +61,27 @@ static ssize_t myread(struct file *file, char __user *ubuf,size_t count, loff_t 
     return len;
 }
 
+// the api for procfs changed with the 5.6 kernel to use the proc_ops struct rather than file_operations
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+static loff_t proc_lseek(struct file *file, loff_t offset, int i)
+{
+    file->f_pos = offset;
+    return offset;
+}
+static struct proc_ops myops =
+{
+    .proc_read = myread,
+    .proc_write = mywrite,
+    .proc_lseek = proc_lseek,
+};
+#else
 static struct file_operations myops = 
 {
     .owner = THIS_MODULE,
     .read = myread,
     .write = mywrite,
 };
+#endif
 
 static int simple_init(void)
 {
